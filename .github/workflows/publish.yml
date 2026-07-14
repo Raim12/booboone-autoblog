@@ -13,6 +13,8 @@ on:
     # Deliberately NOT on the hour: GitHub heavily delays (or drops) scheduled
     # runs at :00 because that is peak load. :20 past is far more reliable.
     - cron: "20 12,17,23 * * *"
+    # TEMPORARY one-off demo run (18:55 UTC). Remove this line afterwards.
+    - cron: "55 18 * * *"
   workflow_dispatch:
     inputs:
       limit:
@@ -53,9 +55,13 @@ jobs:
           WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
           # --- Text (DeepSeek) ---
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          # --- Images (OpenAI) ---
+          # --- Images: AtlasCloud (Z-Image Turbo) is the active provider ---
+          ATLAS_API_KEY: ${{ secrets.ATLAS_API_KEY }}
+          ATLAS_IMAGE_MODEL: ${{ vars.ATLAS_IMAGE_MODEL || 'z-image/turbo' }}
+          ATLAS_IMAGE_SIZE: ${{ vars.ATLAS_IMAGE_SIZE || '1536*1024' }}
+          IMAGE_SOURCE: ${{ vars.IMAGE_SOURCE || 'atlas' }}
+          # --- Images: OpenAI (fallback provider; set IMAGE_SOURCE=openai to use) ---
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          IMAGE_SOURCE: ${{ vars.IMAGE_SOURCE || 'openai' }}
           OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL || 'gpt-image-1-mini' }}
           OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY || 'medium' }}
           OPENAI_IMAGE_SIZE: ${{ vars.OPENAI_IMAGE_SIZE || '1536x1024' }}
