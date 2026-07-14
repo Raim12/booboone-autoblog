@@ -62,6 +62,12 @@ class Config:
     openai_image_size: str = "1536x1024"
     openai_image_quality: str = "low"
 
+    # AtlasCloud images (Z-Image Turbo)
+    atlas_api_key: str = ""
+    atlas_image_model: str = "z-image/turbo"
+    atlas_image_size: str = "1536*1024"
+    atlas_prompt_extend: bool = False  # True doubles the cost ($0.03/img)
+
     # Behaviour
     post_status: str = "publish"  # "publish" or "draft"
     max_posts_per_run: int | None = None
@@ -90,6 +96,10 @@ class Config:
             openai_image_model=os.getenv("OPENAI_IMAGE_MODEL") or "gpt-image-1-mini",
             openai_image_size=os.getenv("OPENAI_IMAGE_SIZE") or "1536x1024",
             openai_image_quality=(os.getenv("OPENAI_IMAGE_QUALITY") or "low").lower(),
+            atlas_api_key=os.getenv("ATLAS_API_KEY") or "",
+            atlas_image_model=os.getenv("ATLAS_IMAGE_MODEL") or "z-image/turbo",
+            atlas_image_size=os.getenv("ATLAS_IMAGE_SIZE") or "1536*1024",
+            atlas_prompt_extend=_bool(os.getenv("ATLAS_PROMPT_EXTEND"), default=False),
             post_status=(os.getenv("POST_STATUS") or "publish").strip().lower(),
             max_posts_per_run=_int(os.getenv("MAX_POSTS_PER_RUN")),
             post_author_id=_int(os.getenv("POST_AUTHOR_ID")),
@@ -118,6 +128,7 @@ class Config:
             )
         if self.image_source not in {
             "openai",
+            "atlas",
             "free_ai",
             "auto",
             "ai",
@@ -125,10 +136,13 @@ class Config:
             "none",
         }:
             problems.append(
-                "IMAGE_SOURCE must be one of: openai, free_ai, auto, ai, stock, none."
+                "IMAGE_SOURCE must be one of: openai, atlas, free_ai, auto, ai, "
+                "stock, none."
             )
         if wants_images and self.image_source == "openai" and not self.openai_api_key:
             problems.append("IMAGE_SOURCE=openai but OPENAI_API_KEY is not set.")
+        if wants_images and self.image_source == "atlas" and not self.atlas_api_key:
+            problems.append("IMAGE_SOURCE=atlas but ATLAS_API_KEY is not set.")
 
         if self.post_status not in {"publish", "draft"}:
             problems.append("POST_STATUS must be 'publish' or 'draft'.")

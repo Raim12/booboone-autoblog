@@ -19,6 +19,7 @@ import logging
 import re
 from pathlib import Path
 
+from .atlascloud import AtlasImageGenerator
 from .imaging import normalize_image
 from .openai_image import OpenAIImageGenerator
 from .pollinations import PollinationsImageGenerator
@@ -110,6 +111,10 @@ class FeaturedImageProvider:
         openai_image_model: str = "gpt-image-1-mini",
         openai_image_size: str = "1536x1024",
         openai_image_quality: str = "low",
+        atlas_api_key: str = "",
+        atlas_image_model: str = "z-image/turbo",
+        atlas_image_size: str = "1536*1024",
+        atlas_prompt_extend: bool = False,
     ):
         self.source = (source or "free_ai").lower()
         self.output_dir = output_dir
@@ -124,6 +129,17 @@ class FeaturedImageProvider:
             if openai_api_key and self.source == "openai"
             else None
         )
+        self._atlas = (
+            AtlasImageGenerator(
+                atlas_api_key,
+                atlas_image_model,
+                output_dir,
+                size=atlas_image_size,
+                prompt_extend=atlas_prompt_extend,
+            )
+            if atlas_api_key and self.source == "atlas"
+            else None
+        )
         self._paid_ai = (
             AIImageGenerator(gemini_api_key, image_model, output_dir)
             if gemini_api_key and self.source in {"auto", "ai"}
@@ -131,12 +147,12 @@ class FeaturedImageProvider:
         )
         self._free_ai = (
             PollinationsImageGenerator(output_dir)
-            if self.source in {"free_ai", "auto", "openai"}
+            if self.source in {"free_ai", "auto", "openai", "atlas"}
             else None
         )
         self._stock = (
             StockImageProvider(output_dir)
-            if self.source in {"free_ai", "auto", "stock", "openai"}
+            if self.source in {"free_ai", "auto", "stock", "openai", "atlas"}
             else None
         )
 
@@ -148,7 +164,12 @@ class FeaturedImageProvider:
     def _resolve(self, *, ai_prompt: str, keyword: str, slug: str) -> Path | None:
         if self.source == "none":
             return None
-        # 0) OpenAI images (cheapest paid option)
+        # 0a) AtlasCloud (Z-Image Turbo)
+        if self._atlas is not None:
+            path = self._atlas.generate(ai_prompt, slug=slug)
+            if path is not None:
+                return path
+        # 0b) OpenAI images
         if self._openai is not None:
             path = self._openai.generate(ai_prompt, slug=slug)
             if path is not None:

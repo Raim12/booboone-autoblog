@@ -32,7 +32,18 @@
       "Bash(python main.py --category \"Travel\" --limit 1)",
       "Bash(python main.py --category \"Beauty & Fashion\" --limit 1)",
       "Bash(python main.py --category \"Tech & Science\" --limit 1)",
-      "Bash(python main.py --limit 2)"
+      "Bash(python main.py --limit 2)",
+      "Bash(git add *)",
+      "Bash(git -c user.name=autoblog -c user.email=dev@local commit -q -m 'chore: schedule posts for US Eastern audience \\(8am/1pm/7pm ET\\) *)",
+      "Bash(git fetch *)",
+      "Bash(git stash *)",
+      "Bash(git pull *)",
+      "Bash(git push *)",
+      "WebFetch(domain:www.atlascloud.ai)",
+      "Bash(sed -i 's/^POST_STATUS=publish/POST_STATUS=draft/' .env)",
+      "WebFetch(domain:docs.atlascloud.ai)",
+      "Bash(sed -i 's/^POST_STATUS=draft/POST_STATUS=publish/' .env)",
+      "Bash(git -c user.name=autoblog -c user.email=dev@local commit -q -m 'feat: add AtlasCloud \\(Z-Image Turbo\\) image provider; sync publish state *)"
     ]
   }
 }

@@ -44,6 +44,10 @@ def run(
             openai_image_model=cfg.openai_image_model,
             openai_image_size=cfg.openai_image_size,
             openai_image_quality=cfg.openai_image_quality,
+            atlas_api_key=cfg.atlas_api_key,
+            atlas_image_model=cfg.atlas_image_model,
+            atlas_image_size=cfg.atlas_image_size,
+            atlas_prompt_extend=cfg.atlas_prompt_extend,
         )
         if cfg.generate_images and not dry_run
         else None
