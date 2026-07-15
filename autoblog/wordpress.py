@@ -53,30 +53,46 @@ class WordPressClient:
         """Return the most relevant existing posts for a keyword, as
         [{"title": ..., "url": ...}]. WordPress does the search server-side
         (its DB is indexed), so this is one fast query, not a scan of all posts.
-        """
-        params = {
-            "search": keyword,
-            "per_page": limit,
-            "status": "publish",
-            "orderby": "relevance",
-            "_fields": "id,title,link",
-        }
-        if category_id:
-            params["categories"] = category_id
-        try:
-            resp = self.session.get(f"{self.api}/posts", params=params, timeout=30)
-            resp.raise_for_status()
-        except requests.RequestException as err:
-            logger.warning("Related-post search failed for '%s': %s", keyword, err)
-            return []
 
-        out: list[dict] = []
-        for post in resp.json():
-            title = html.unescape(post.get("title", {}).get("rendered", "")).strip()
-            url = post.get("link", "")
-            if title and url:
-                out.append({"title": title, "url": url})
-        return out
+        Prefers same-category matches; if too few are found, broadens to a
+        site-wide search so most articles still get enough posts to link to.
+        """
+        results: list[dict] = []
+        seen: set[str] = set()
+
+        def _search(cat: int | None) -> list[dict]:
+            params = {
+                "search": keyword,
+                "per_page": limit,
+                "status": "publish",
+                "orderby": "relevance",
+                "_fields": "id,title,link",
+            }
+            if cat:
+                params["categories"] = cat
+            try:
+                resp = self.session.get(f"{self.api}/posts", params=params, timeout=30)
+                resp.raise_for_status()
+                return resp.json()
+            except requests.RequestException as err:
+                logger.warning("Related-post search failed for '%s': %s", keyword, err)
+                return []
+
+        def _collect(posts) -> None:
+            for post in posts:
+                url = post.get("link", "")
+                title = html.unescape(post.get("title", {}).get("rendered", "")).strip()
+                if title and url and url not in seen:
+                    seen.add(url)
+                    results.append({"title": title, "url": url})
+
+        # 1) same-category matches first (most relevant)
+        if category_id:
+            _collect(_search(category_id))
+        # 2) if too few, broaden site-wide to top up to `limit`
+        if len(results) < 3:
+            _collect(_search(None))
+        return results[:limit]
 
     # -- categories ---------------------------------------------------------
     def category_exists(self, category_id: int) -> bool:
