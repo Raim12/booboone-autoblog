@@ -46,6 +46,38 @@ class WordPressClient:
         resp.raise_for_status()
         return resp.json()
 
+    # -- related posts (for internal linking) -------------------------------
+    def find_related_posts(
+        self, keyword: str, category_id: int | None = None, *, limit: int = 6
+    ) -> list[dict]:
+        """Return the most relevant existing posts for a keyword, as
+        [{"title": ..., "url": ...}]. WordPress does the search server-side
+        (its DB is indexed), so this is one fast query, not a scan of all posts.
+        """
+        params = {
+            "search": keyword,
+            "per_page": limit,
+            "status": "publish",
+            "orderby": "relevance",
+            "_fields": "id,title,link",
+        }
+        if category_id:
+            params["categories"] = category_id
+        try:
+            resp = self.session.get(f"{self.api}/posts", params=params, timeout=30)
+            resp.raise_for_status()
+        except requests.RequestException as err:
+            logger.warning("Related-post search failed for '%s': %s", keyword, err)
+            return []
+
+        out: list[dict] = []
+        for post in resp.json():
+            title = html.unescape(post.get("title", {}).get("rendered", "")).strip()
+            url = post.get("link", "")
+            if title and url:
+                out.append({"title": title, "url": url})
+        return out
+
     # -- categories ---------------------------------------------------------
     def category_exists(self, category_id: int) -> bool:
         resp = self.session.get(f"{self.api}/categories/{category_id}", timeout=30)

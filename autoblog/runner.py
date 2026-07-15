@@ -96,8 +96,25 @@ def run(
             continue
 
         try:
-            logger.info("[%s] Generating article for '%s'.", category, keyword)
-            article = content_gen.generate(keyword)
+            # Resolve the category and fetch related existing posts BEFORE
+            # writing, so the article can weave in internal links to them.
+            related_posts: list[dict] = []
+            category_id: int | None = None
+            if not dry_run and wp is not None:
+                mapped = category_map.get(category, category)
+                if isinstance(mapped, int):
+                    category_id = mapped
+                else:
+                    category_id = wp.get_or_create_category(str(mapped))
+                related_posts = wp.find_related_posts(keyword, category_id, limit=6)
+
+            logger.info(
+                "[%s] Generating article for '%s' (%d related posts for links).",
+                category,
+                keyword,
+                len(related_posts),
+            )
+            article = content_gen.generate(keyword, related_posts=related_posts)
 
             if dry_run:
                 logger.info(
@@ -127,12 +144,7 @@ def run(
                             img_err,
                         )
 
-            # Resolve category: an ID (duplicate-proof) or a name to match/create.
-            mapped = category_map.get(category, category)
-            if isinstance(mapped, int):
-                category_id = mapped
-            else:
-                category_id = wp.get_or_create_category(str(mapped))
+            assert category_id is not None
             post = wp.create_post(
                 title=article.title,
                 content_html=article.content_html,

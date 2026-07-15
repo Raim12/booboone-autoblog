@@ -60,13 +60,42 @@ CRITICAL - avoid these AI giveaways:
 - Vary sentence length. Be specific and concrete: use real examples, numbers, and
   practical detail rather than generic advice.
 
-Return ONLY a JSON object with exactly these fields:
+{internal_links}Return ONLY a JSON object with exactly these fields:
 {{
   "title": "An engaging, click-worthy H1 title (do NOT include the word 'title')",
   "meta_description": "A 150-160 character SEO meta description",
   "content_html": "The full article body as clean HTML using <h2>, <h3>, <p>, <ul>, <li>, <strong>. Do NOT include <html>, <head>, <body>, or an <h1> tag.",
   "image_prompt": "A vivid, concrete prompt (max 40 words) for a photorealistic editorial featured image that fits the article. IMPORTANT: describe a scene with NO readable text in it - avoid computer/phone screens, documents, papers, charts, books, signage, labels, or whiteboards, because AI renders text as gibberish. Prefer people, hands, objects, places, nature, or close-up details instead."
 }}"""
+
+# Injected into the prompt only when related posts are available.
+INTERNAL_LINKS_TEMPLATE = """INTERNAL LINKS (important for SEO - do this carefully):
+Below are real, existing articles on this same website. Naturally weave {min_links}-{max_links}
+of them into the article body as contextual internal links. Rules:
+- Place each link inside a relevant sentence using descriptive anchor text (the
+  linked words should describe the target, not "click here" or the raw URL).
+- Use proper HTML: <a href="EXACT_URL">natural anchor text</a>, with the EXACT URLs given.
+- Only link where it genuinely fits the topic. Do NOT force all of them, do NOT add a
+  "Related posts" list, and do NOT mention that these are internal links.
+- Spread them through the body, not all in one place.
+
+Existing articles you may link to:
+{links}
+
+"""
+
+
+def _build_links_block(related_posts, *, min_links: int = 3, max_links: int = 5) -> str:
+    if not related_posts:
+        return ""
+    lines = "\n".join(
+        f'- "{p["title"]}" -> {p["url"]}' for p in related_posts if p.get("url")
+    )
+    if not lines:
+        return ""
+    return INTERNAL_LINKS_TEMPLATE.format(
+        min_links=min_links, max_links=max_links, links=lines
+    )
 
 
 @dataclass
@@ -83,8 +112,17 @@ class ContentGenerator:
         self.model = model
         self.client = OpenAI(api_key=api_key, base_url=base_url)
 
-    def generate(self, keyword: str, *, max_retries: int = 3) -> Article:
-        prompt = USER_PROMPT_TEMPLATE.format(keyword=keyword)
+    def generate(
+        self,
+        keyword: str,
+        *,
+        related_posts: list[dict] | None = None,
+        max_retries: int = 3,
+    ) -> Article:
+        prompt = USER_PROMPT_TEMPLATE.format(
+            keyword=keyword,
+            internal_links=_build_links_block(related_posts or []),
+        )
         last_err: Exception | None = None
 
         for attempt in range(1, max_retries + 1):
